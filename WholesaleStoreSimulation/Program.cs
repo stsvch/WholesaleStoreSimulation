@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace WholesaleStoreSimulation
 {
@@ -34,7 +36,7 @@ public class Program
         Console.WriteLine($"5. Средняя загрузка клерков: {agg.MeanAvgUtil:P1} (Ст. откл: {agg.StdDevAvgUtil:P1})");
 
         // 1.1
-        var chiSquaredResult = RunChiSquaredTest();
+        var chiSquaredResults = RunChiSquaredTests();
         
         // 1.2 - Точечные и интервальные оценки
         var confidenceResults = ConfidenceIntervalAnalyzer.PerformConfidenceIntervalAnalysis(cfg);
@@ -51,9 +53,9 @@ public class Program
         // 1.4
         var transientResult = RunTransientAnalysis(cfg);
 
-        if (chiSquaredResult is not null)
+        if (chiSquaredResults?.Any() == true)
         {
-            ChartGenerator.GenerateHtmlReport(result, agg, chiSquaredResult);
+            ChartGenerator.GenerateHtmlReport(result, agg, chiSquaredResults);
         }
 
         if (confidenceResults is not null)
@@ -87,69 +89,90 @@ public class Program
         Console.WriteLine("\nГотово.");
     }
     
-    public static ChiSquaredResult RunChiSquaredTest()
+    public static List<ChiSquaredMetricResult> RunChiSquaredTests()
     {
         Console.WriteLine("\n" + new string('-', 60));
         Console.WriteLine("ПРОВЕРКА ГИПОТЕЗЫ О НОРМАЛЬНОСТИ ОТКЛИКОВ (ХИ-КВАДРАТ)");
         Console.WriteLine(new string('-', 60));
 
-        int replications = 1000; 
-        Console.WriteLine($"\nШаг 1: Выполнение {replications} прогонов для сбора данных...");
+        int replications = 1000;
+        Console.WriteLine($"\nШаг 1: Выполнение {replications} прогонов для сбора данных по всем откликам...");
         var cfg = new SimulatorConfig();
         var aggResults = WholesaleStoreSimulator.VerifyWithReplications(cfg, replications);
-        var data = aggResults.ReplicationResults.Select(r => r.AverageSystemTime).ToList();
-        Console.WriteLine($"Шаг 2: Данные собраны. Тестируется отклик: 'Среднее время в системе'. Размер выборки: {data.Count}.");
 
-        try
+        var metricSelectors = new List<(string Name, Func<SimulationResult, double> Selector)>
         {
-            var chiSquaredTest = new ChiSquaredTest(data);
-            var testResult = chiSquaredTest.PerformTest();
+            ("Среднее время в системе", r => r.AverageSystemTime),
+            ("Среднее время ожидания", r => r.AverageWaitingTime),
+            ("Средняя длина очереди", r => r.AverageQueueLength),
+            ("Средняя загрузка клерков", r => r.ClerkUtilizations.Average()),
+            ("Количество обслуженных покупателей", r => r.CustomersServed)
+        };
 
-            Console.WriteLine("\nШаг 3: Результаты теста хи-квадрат.");
-            Console.WriteLine($"\nВыборочное среднее: {testResult.Mean:F3}, Стандартное отклонение: {testResult.StdDev:F3}\n");
+        var metricResults = new List<ChiSquaredMetricResult>();
 
-            // --- ВОССТАНОВЛЕННЫЙ БЛОК ВЫВОДА ТАБЛИЦЫ ---
-            var sb = new StringBuilder();
-            sb.AppendLine("+----------------+--------------------+-------------------+----------------+");
-            sb.AppendLine("|    Интервал    | Наблюдаемая частота| Ожидаемая частота |    (O-E)²/E    |");
-            sb.AppendLine("+----------------+--------------------+-------------------+----------------+");
-
-            foreach (var interval in testResult.Intervals)
-            {
-                string intervalStr = $"[{interval.LowerBound:F2}, {interval.UpperBound:F2})";
-                double oMinusESquaredOverE = Math.Pow(interval.ObservedFrequency - interval.ExpectedFrequency, 2) / interval.ExpectedFrequency;
-                sb.AppendLine($"| {intervalStr,-14} | {interval.ObservedFrequency,-18} | {interval.ExpectedFrequency,-17:F3} | {oMinusESquaredOverE,-14:F4} |");
-            }
-            sb.AppendLine("+----------------+--------------------+-------------------+----------------+");
-            Console.WriteLine(sb.ToString());
-            // --- КОНЕЦ ВОССТАНОВЛЕННОГО БЛОКА ---
-
-            Console.WriteLine("Итоговые результаты:");
-            Console.WriteLine($"  - Рассчитанное значение хи-квадрат (χ²): {testResult.ChiSquaredStatistic:F4}");
-            Console.WriteLine($"  - Число степеней свободы (df): {testResult.DegreesOfFreedom}");
-            Console.WriteLine($"  - Критическое значение χ² для alpha=0.05: {testResult.CriticalValue:F4}");
-
-            Console.WriteLine("\nВывод:");
-            if (testResult.IsNormal)
-            {
-                Console.WriteLine($"  Рассчитанное значение ({testResult.ChiSquaredStatistic:F4}) МЕНЬШЕ критического ({testResult.CriticalValue:F4}).");
-                Console.WriteLine("  => Гипотеза о нормальности распределения отклика ПРИНИМАЕТСЯ.");
-            }
-            else
-            {
-                Console.WriteLine($"  Рассчитанное значение ({testResult.ChiSquaredStatistic:F4}) БОЛЬШЕ критического ({testResult.CriticalValue:F4}).");
-                Console.WriteLine("  => Гипотеза о нормальности распределения отклика ОТВЕРГАЕТСЯ.");
-            }
-
-            return testResult;
-        }
-        catch (Exception ex)
+        foreach (var metric in metricSelectors)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"\nОШИБКА при выполнении теста: {ex.Message}");
-            Console.ResetColor();
-            return null;
+            var data = aggResults.ReplicationResults.Select(metric.Selector).ToList();
+            Console.WriteLine($"Шаг 2: Данные собраны. Тестируется отклик: '{metric.Name}'. Размер выборки: {data.Count}.");
+
+            if (data.Count < 20)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  ⚠️ Недостаточно данных для надежного теста. Пропускаем этот отклик.");
+                Console.ResetColor();
+                continue;
+            }
+
+            try
+            {
+                var chiSquaredTest = new ChiSquaredTest(data);
+                var testResult = chiSquaredTest.PerformTest();
+                var metricResult = new ChiSquaredMetricResult(metric.Name, testResult);
+                metricResults.Add(metricResult);
+
+                Console.WriteLine("\nШаг 3: Результаты теста хи-квадрат.");
+                Console.WriteLine($"Выборочное среднее: {testResult.Mean:F3}, Стандартное отклонение: {testResult.StdDev:F3}");
+
+                var sb = new StringBuilder();
+                sb.AppendLine("+----------------+--------------------+-------------------+----------------+");
+                sb.AppendLine("|    Интервал    | Наблюдаемая частота| Ожидаемая частота |    (O-E)²/E    |");
+                sb.AppendLine("+----------------+--------------------+-------------------+----------------+");
+
+                foreach (var interval in testResult.Intervals)
+                {
+                    string intervalStr = $"[{interval.LowerBound:F2}, {interval.UpperBound:F2})";
+                    double oMinusESquaredOverE = Math.Pow(interval.ObservedFrequency - interval.ExpectedFrequency, 2) / interval.ExpectedFrequency;
+                    sb.AppendLine($"| {intervalStr,-14} | {interval.ObservedFrequency,-18} | {interval.ExpectedFrequency,-17:F3} | {oMinusESquaredOverE,-14:F4} |");
+                }
+                sb.AppendLine("+----------------+--------------------+-------------------+----------------+");
+                Console.WriteLine(sb.ToString());
+
+                Console.WriteLine("Итоговые результаты:");
+                Console.WriteLine($"  - Отклик: {metric.Name}");
+                Console.WriteLine($"  - Рассчитанное значение χ²: {testResult.ChiSquaredStatistic:F4}");
+                Console.WriteLine($"  - Степени свободы: {testResult.DegreesOfFreedom}");
+                Console.WriteLine($"  - Критическое значение (α=0.05): {testResult.CriticalValue:F4}");
+
+                Console.WriteLine("Вывод:");
+                if (testResult.IsNormal)
+                {
+                    Console.WriteLine("  => Гипотеза о нормальности распределения отклика ПРИНИМАЕТСЯ.");
+                }
+                else
+                {
+                    Console.WriteLine("  => Гипотеза о нормальности распределения отклика ОТВЕРГАЕТСЯ.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nОШИБКА при выполнении теста для отклика '{metric.Name}': {ex.Message}");
+                Console.ResetColor();
+            }
         }
+
+        return metricResults;
     }
     
     public static TransientAnalysisResult RunTransientAnalysis(SimulatorConfig baseConfig)

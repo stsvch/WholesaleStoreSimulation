@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 
@@ -9,12 +11,12 @@ namespace WholesaleStoreSimulation
         #region --- Генератор основного отчета ---
         
         public static void GenerateHtmlReport(
-            SimulationResult singleResult, 
-            AggregatedResult aggregatedResult, 
-            ChiSquaredResult chiSquaredResult = null, 
+            SimulationResult singleResult,
+            AggregatedResult aggregatedResult,
+            IEnumerable<ChiSquaredMetricResult> chiSquaredResults = null,
             string fileName = "simulation_results.html")
         {
-            var html = GenerateMainHtmlContent(singleResult, aggregatedResult, chiSquaredResult);
+            var html = GenerateMainHtmlContent(singleResult, aggregatedResult, chiSquaredResults);
             var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
             File.WriteAllText(fullPath, html, Encoding.UTF8);
             Console.WriteLine($"\nОсновной HTML отчет успешно сгенерирован: {fullPath}");
@@ -23,10 +25,11 @@ namespace WholesaleStoreSimulation
         private static string GenerateMainHtmlContent(
             SimulationResult single,
             AggregatedResult aggregated,
-            ChiSquaredResult chiSquaredResult = null)
+            IEnumerable<ChiSquaredMetricResult> chiSquaredResults = null)
         {
             var culture = CultureInfo.InvariantCulture;
             var htmlBuilder = new StringBuilder();
+            var chiSquaredList = chiSquaredResults?.ToList() ?? new List<ChiSquaredMetricResult>();
 
             htmlBuilder.AppendLine("<!DOCTYPE html>");
             htmlBuilder.AppendLine("<html lang=\"ru\"><head>");
@@ -37,42 +40,32 @@ namespace WholesaleStoreSimulation
             htmlBuilder.AppendLine("</head><body><div class=\"container\">");
             htmlBuilder.AppendLine("<h1>🏪 1.1 Тест хи-квадрат на нормальность распределения откликов</h1>");
 
-            if (chiSquaredResult != null)
+            if (chiSquaredList.Any())
             {
-                string chiSquaredChartData = SerializeChiSquaredIntervals(chiSquaredResult, culture);
+                htmlBuilder.AppendLine("        <p>Для каждого ключевого отклика выполнен отдельный тест хи-квадрат.</p>");
 
-                htmlBuilder.AppendLine("        <h2>Тест хи-квадрат на нормальность распределения</h2>");
-                htmlBuilder.AppendLine(
-                    $"        <div class=\"chi-squared-result {(chiSquaredResult.IsNormal ? "chi-squared-accepted" : "chi-squared-rejected")}\">");
-                htmlBuilder.AppendLine("            <h3>Результаты теста хи-квадрат</h3>");
-                htmlBuilder.AppendLine(
-                    "            <p><strong>Проверяемая гипотеза:</strong> Распределение среднего времени в системе соответствует нормальному распределению</p>");
-                htmlBuilder.AppendLine(
-                    $"            <p><strong>Выборочное среднее:</strong> {chiSquaredResult.Mean:F3} | <strong>Стандартное отклонение:</strong> {chiSquaredResult.StdDev:F3}</p>");
-                htmlBuilder.AppendLine(
-                    $"            <p><strong>Статистика хи-квадрат (χ²):</strong> {chiSquaredResult.ChiSquaredStatistic:F4} | <strong>Критическое значение (α=0.05):</strong> {chiSquaredResult.CriticalValue:F4} | <strong>Степени свободы:</strong> {chiSquaredResult.DegreesOfFreedom}</p>");
+                for (int index = 0; index < chiSquaredList.Count; index++)
+                {
+                    var metricResult = chiSquaredList[index];
+                    string cssClass = metricResult.IsNormal ? "chi-squared-accepted" : "chi-squared-rejected";
+                    string resultText = metricResult.IsNormal ? "ГИПОТЕЗА ПРИНЯТА" : "ГИПОТЕЗА ОТВЕРГНУТА";
+                    string color = metricResult.IsNormal ? "#27ae60" : "#e74c3c";
 
-                string resultColor;
-                string resultText;
-                if (chiSquaredResult.IsNormal)
-                {
-                    resultColor = "#27ae60";
-                    resultText = "ГИПОТЕЗА ПРИНЯТА";
-                }
-                else
-                {
-                    resultColor = "#e74c3c";
-                    resultText = "ГИПОТЕЗА ОТВЕРГНУТА";
+                    htmlBuilder.AppendLine($"        <div class=\"chi-squared-result {cssClass}\">");
+                    htmlBuilder.AppendLine($"            <h3>{metricResult.MetricName}</h3>");
+                    htmlBuilder.AppendLine(
+                        $"            <p><strong>Выборочное среднее:</strong> {metricResult.Mean:F3} | <strong>Стандартное отклонение:</strong> {metricResult.StdDev:F3}</p>");
+                    htmlBuilder.AppendLine(
+                        $"            <p><strong>Статистика χ²:</strong> {metricResult.ChiSquaredStatistic:F4} | <strong>Критическое значение:</strong> {metricResult.CriticalValue:F4} | <strong>df:</strong> {metricResult.DegreesOfFreedom}</p>");
+                    htmlBuilder.AppendLine(
+                        $"            <p><strong>Результат:</strong> <span style=\"color:{color}; font-weight:bold;\">{resultText}</span></p>");
+                    htmlBuilder.AppendLine(
+                        $"            <div class=\"chart-container\"><h4>Гистограмма наблюдаемых и ожидаемых частот</h4><canvas id=\"chiSquaredHistogramChart{index}\"></canvas></div>");
+                    htmlBuilder.AppendLine("        </div>");
                 }
 
-                htmlBuilder.AppendLine(
-                    $"            <p><strong>Результат:</strong> <span style=\"color: {resultColor}; font-weight: bold;\">{resultText}</span></p></div>");
-
-                htmlBuilder.AppendLine("        <div class=\"grid-container\" style=\"grid-template-columns: 1fr;\">");
-                htmlBuilder.AppendLine(
-                    "            <div class=\"chart-container\"><h3>Гистограмма: Наблюдаемые vs Ожидаемые частоты</h3><canvas id=\"chiSquaredHistogramChart\"></canvas></div>");
-                htmlBuilder.AppendLine("        </div>");
-                htmlBuilder.AppendLine($"<script>const chiSquaredData = [{chiSquaredChartData}];</script>");
+                var serializedChiSquared = SerializeChiSquaredResults(chiSquaredList);
+                htmlBuilder.AppendLine($"<script>const chiSquaredData = {serializedChiSquared};</script>");
             }
 
             htmlBuilder.AppendLine("    </div>");
@@ -80,10 +73,10 @@ namespace WholesaleStoreSimulation
             htmlBuilder.AppendLine(
                 "        const createChart = (id, config) => new Chart(document.getElementById(id), config);");
 
-            // Только создание гистограммы хи-квадрат
+            // Создание гистограмм хи-квадрат для каждого отклика
             htmlBuilder.AppendLine("        if (typeof chiSquaredData !== 'undefined') {");
             htmlBuilder.AppendLine(
-                "            createChart('chiSquaredHistogramChart', { type: 'bar', data: { labels: chiSquaredData.map(d => `[${d.lower.toFixed(1)}, ${d.upper.toFixed(1)})`), datasets: [{ label: 'Наблюдаемые', data: chiSquaredData.map(d => d.observed), backgroundColor: '#3498dbCC', borderWidth: 1 }, { label: 'Ожидаемые', data: chiSquaredData.map(d => d.expected), borderColor: '#e74c3c', borderWidth: 2, type: 'line', pointRadius: 4, pointBackgroundColor: '#e74c3c' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });");
+                "            chiSquaredData.forEach(item => { const labels = item.intervals.map(i => `[${i.lower.toFixed(1)}, ${i.upper.toFixed(1)})`); createChart(item.chartId, { type: 'bar', data: { labels, datasets: [{ label: 'Наблюдаемые', data: item.intervals.map(i => i.observed), backgroundColor: '#3498dbCC', borderWidth: 1 }, { label: 'Ожидаемые', data: item.intervals.map(i => i.expected), borderColor: '#e74c3c', borderWidth: 2, type: 'line', pointRadius: 4, pointBackgroundColor: '#e74c3c' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } }); });");
             htmlBuilder.AppendLine("        }");
             htmlBuilder.AppendLine("    </script>");
             htmlBuilder.AppendLine("</body></html>");
@@ -214,7 +207,29 @@ namespace WholesaleStoreSimulation
             }
             return result;
         }
-        private static string SerializeChiSquaredIntervals(ChiSquaredResult res, CultureInfo c) => string.Join(",", res.Intervals.Select(i => $"{{'lower':{i.LowerBound.ToString("F2", c)},'upper':{i.UpperBound.ToString("F2", c)},'observed':{i.ObservedFrequency},'expected':{i.ExpectedFrequency.ToString("F2", c)}}}"));
+        private static string SerializeChiSquaredResults(List<ChiSquaredMetricResult> results)
+        {
+            var payload = results.Select((res, index) => new
+            {
+                chartId = $"chiSquaredHistogramChart{index}",
+                metric = res.MetricName,
+                mean = res.Mean,
+                stdDev = res.StdDev,
+                chiSquared = res.ChiSquaredStatistic,
+                critical = res.CriticalValue,
+                df = res.DegreesOfFreedom,
+                isNormal = res.IsNormal,
+                intervals = res.Intervals.Select(i => new
+                {
+                    lower = i.LowerBound,
+                    upper = i.UpperBound,
+                    observed = i.ObservedFrequency,
+                    expected = i.ExpectedFrequency
+                })
+            });
+
+            return JsonSerializer.Serialize(payload);
+        }
         private static string SerializeChiSquaredComparison(ChiSquaredResult res, CultureInfo c) => $"{{'calculated':{res.ChiSquaredStatistic.ToString("F4", c)},'critical':{res.CriticalValue.ToString("F4", c)},'isNormal':{res.IsNormal.ToString().ToLower()},'degreesOfFreedom':{res.DegreesOfFreedom}}}";
         private static string GenerateChiSquaredDistributionData(int df, double calc, double crit)
         {
