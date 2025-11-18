@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using WholesaleStoreSimulation.Legacy;
 
 namespace WholesaleStoreSimulation
 {
@@ -23,13 +24,13 @@ namespace WholesaleStoreSimulation
         }
 
         /// <summary>
-        /// Legacy overload that accepts the historical ChiSquaredResult models
+        /// Legacy overload that accepts the historical <see cref="LegacyChiSquaredResult"/> models
         /// and converts them to the new metric-aware results.
         /// </summary>
         public static void GenerateHtmlReport(
             SimulationResult singleResult,
             AggregatedResult aggregatedResult,
-            IEnumerable<ChiSquaredResult> chiSquaredResults,
+            IEnumerable<LegacyChiSquaredResult> chiSquaredResults,
             string fileName = "simulation_results.html")
         {
             var converted = chiSquaredResults?.Select(r => r.ToMetricTestResult()).ToList();
@@ -38,15 +39,15 @@ namespace WholesaleStoreSimulation
 
         /// <summary>
         /// Convenience overload for callers that produced a single legacy
-        /// ChiSquaredResult instance.
+        /// <see cref="LegacyChiSquaredResult"/> instance.
         /// </summary>
         public static void GenerateHtmlReport(
             SimulationResult singleResult,
             AggregatedResult aggregatedResult,
-            ChiSquaredResult chiSquaredResult,
+            LegacyChiSquaredResult chiSquaredResult,
             string fileName = "simulation_results.html")
         {
-            IEnumerable<ChiSquaredResult> list = chiSquaredResult is null
+            IEnumerable<LegacyChiSquaredResult> list = chiSquaredResult is null
                 ? null
                 : new[] { chiSquaredResult };
             GenerateHtmlReport(singleResult, aggregatedResult, list, fileName);
