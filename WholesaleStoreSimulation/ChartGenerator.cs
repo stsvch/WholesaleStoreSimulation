@@ -22,6 +22,36 @@ namespace WholesaleStoreSimulation
             Console.WriteLine($"\nОсновной HTML отчет успешно сгенерирован: {fullPath}");
         }
 
+        /// <summary>
+        /// Legacy overload that accepts the historical ChiSquaredResult models
+        /// and converts them to the new metric-aware results.
+        /// </summary>
+        public static void GenerateHtmlReport(
+            SimulationResult singleResult,
+            AggregatedResult aggregatedResult,
+            IEnumerable<ChiSquaredResult> chiSquaredResults,
+            string fileName = "simulation_results.html")
+        {
+            var converted = chiSquaredResults?.Select(r => r.ToMetricTestResult()).ToList();
+            GenerateHtmlReport(singleResult, aggregatedResult, converted, fileName);
+        }
+
+        /// <summary>
+        /// Convenience overload for callers that produced a single legacy
+        /// ChiSquaredResult instance.
+        /// </summary>
+        public static void GenerateHtmlReport(
+            SimulationResult singleResult,
+            AggregatedResult aggregatedResult,
+            ChiSquaredResult chiSquaredResult,
+            string fileName = "simulation_results.html")
+        {
+            IEnumerable<ChiSquaredResult> list = chiSquaredResult is null
+                ? null
+                : new[] { chiSquaredResult };
+            GenerateHtmlReport(singleResult, aggregatedResult, list, fileName);
+        }
+
         private static string GenerateMainHtmlContent(
             SimulationResult single,
             AggregatedResult aggregated,
