@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+using WholesaleStoreSimulation;
 
-namespace WholesaleStoreSimulation;
+namespace WholesaleStoreSimulation.Legacy;
 
 /// <summary>
 /// Legacy models that existed in earlier versions of the project.  The new
@@ -14,7 +15,7 @@ namespace WholesaleStoreSimulation;
 /// data to the new models.  This keeps existing code compiling while allowing
 /// the new reporting pipeline to work with the richer metric-aware results.
 /// </summary>
-public class ChiSquaredResult
+public class LegacyChiSquaredResult
 {
     public string MetricName { get; set; } = string.Empty;
     public double Mean { get; set; }
@@ -23,7 +24,7 @@ public class ChiSquaredResult
     public int DegreesOfFreedom { get; set; }
     public double CriticalValue { get; set; }
     public bool IsNormal { get; set; }
-    public List<ChiSquaredInterval> Intervals { get; set; } = new();
+    public List<LegacyChiSquaredInterval> Intervals { get; set; } = new();
 
     public ChiSquaredMetricTestResult ToMetricTestResult()
     {
@@ -41,9 +42,9 @@ public class ChiSquaredResult
         return new ChiSquaredMetricTestResult(MetricName, baseResult);
     }
 
-    public static ChiSquaredResult FromMetricResult(ChiSquaredMetricTestResult metricResult)
+    public static LegacyChiSquaredResult FromMetricResult(ChiSquaredMetricTestResult metricResult)
     {
-        return new ChiSquaredResult
+        return new LegacyChiSquaredResult
         {
             MetricName = metricResult.MetricName,
             Mean = metricResult.Result.Mean,
@@ -53,13 +54,13 @@ public class ChiSquaredResult
             CriticalValue = metricResult.Result.CriticalValue,
             IsNormal = metricResult.Result.IsNormal,
             Intervals = metricResult.Result.Intervals
-                .Select(ChiSquaredInterval.FromIntervalInfo)
+                .Select(LegacyChiSquaredInterval.FromIntervalInfo)
                 .ToList()
         };
     }
 }
 
-public class ChiSquaredInterval
+public class LegacyChiSquaredInterval
 {
     public double LowerBound { get; set; }
     public double UpperBound { get; set; }
@@ -74,7 +75,7 @@ public class ChiSquaredInterval
         ExpectedFrequency = ExpectedFrequency
     };
 
-    public static ChiSquaredInterval FromIntervalInfo(ChiSquaredIntervalInfo info) => new()
+    public static LegacyChiSquaredInterval FromIntervalInfo(ChiSquaredIntervalInfo info) => new()
     {
         LowerBound = info.LowerBound,
         UpperBound = info.UpperBound,
