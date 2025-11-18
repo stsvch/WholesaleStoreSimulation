@@ -89,7 +89,7 @@ public class Program
         Console.WriteLine("\nГотово.");
     }
     
-    public static List<ChiSquaredMetricResult> RunChiSquaredTests()
+    public static List<ChiSquaredMetricTestResult> RunChiSquaredTests()
     {
         Console.WriteLine("\n" + new string('-', 60));
         Console.WriteLine("ПРОВЕРКА ГИПОТЕЗЫ О НОРМАЛЬНОСТИ ОТКЛИКОВ (ХИ-КВАДРАТ)");
@@ -109,7 +109,7 @@ public class Program
             ("Количество обслуженных покупателей", r => r.CustomersServed)
         };
 
-        var metricResults = new List<ChiSquaredMetricResult>();
+        var metricResults = new List<ChiSquaredMetricTestResult>();
 
         foreach (var metric in metricSelectors)
         {
@@ -128,7 +128,7 @@ public class Program
             {
                 var chiSquaredTest = new ChiSquaredTest(data);
                 var testResult = chiSquaredTest.PerformTest();
-                var metricResult = new ChiSquaredMetricResult(metric.Name, testResult);
+                var metricResult = new ChiSquaredMetricTestResult(metric.Name, testResult);
                 metricResults.Add(metricResult);
 
                 Console.WriteLine("\nШаг 3: Результаты теста хи-квадрат.");

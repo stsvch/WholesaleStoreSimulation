@@ -1,65 +1,9 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace WholesaleStoreSimulation
 {
-    /// <summary>
-    /// Содержит результаты выполнения теста хи-квадрат.
-    /// </summary>
-    public class ChiSquaredResult
-    {
-        public double ChiSquaredStatistic { get; set; }
-        public double CriticalValue { get; set; }
-        public int DegreesOfFreedom { get; set; }
-        public bool IsNormal { get; set; }
-        public List<IntervalInfo> Intervals { get; set; } = new();
-        public double Mean { get; set; }
-        public double StdDev { get; set; }
-    }
-
-    /// <summary>
-    /// Результат теста хи-квадрат для конкретного отклика.
-    /// </summary>
-    public class ChiSquaredMetricResult : ChiSquaredResult
-    {
-        public string MetricName { get; set; } = string.Empty;
-
-        public ChiSquaredMetricResult()
-        {
-        }
-
-        public ChiSquaredMetricResult(string metricName, ChiSquaredResult baseResult)
-        {
-            MetricName = metricName;
-            ChiSquaredStatistic = baseResult.ChiSquaredStatistic;
-            CriticalValue = baseResult.CriticalValue;
-            DegreesOfFreedom = baseResult.DegreesOfFreedom;
-            IsNormal = baseResult.IsNormal;
-            Mean = baseResult.Mean;
-            StdDev = baseResult.StdDev;
-            Intervals = baseResult.Intervals
-                .Select(i => new IntervalInfo
-                {
-                    LowerBound = i.LowerBound,
-                    UpperBound = i.UpperBound,
-                    ObservedFrequency = i.ObservedFrequency,
-                    ExpectedFrequency = i.ExpectedFrequency
-                })
-                .ToList();
-        }
-    }
-
-    /// <summary>
-    /// Хранит информацию об одном интервале гистограммы.
-    /// </summary>
-    public class IntervalInfo
-    {
-        public double LowerBound { get; set; }
-        public double UpperBound { get; set; }
-        public int ObservedFrequency { get; set; }
-        public double ExpectedFrequency { get; set; }
-    }
-    
     /// <summary>
     /// Реализует тест согласия хи-квадрат Пирсона для проверки гипотезы о нормальном распределении.
     /// </summary>
@@ -77,7 +21,7 @@ namespace WholesaleStoreSimulation
         /// <summary>
         /// Выполняет тест хи-квадрат.
         /// </summary>
-        public ChiSquaredResult PerformTest()
+        public ChiSquaredTestResult PerformTest()
         {
             int n = _data.Count;
             if (n < 20)
@@ -96,10 +40,10 @@ namespace WholesaleStoreSimulation
             double maxVal = _data.Max();
             double intervalWidth = (maxVal - minVal) / k;
 
-            var intervals = new List<IntervalInfo>();
+            var intervals = new List<ChiSquaredIntervalInfo>();
             for (int i = 0; i < k; i++)
             {
-                var interval = new IntervalInfo
+                var interval = new ChiSquaredIntervalInfo
                 {
                     LowerBound = minVal + i * intervalWidth,
                     UpperBound = minVal + (i + 1) * intervalWidth
@@ -146,7 +90,7 @@ namespace WholesaleStoreSimulation
             double criticalValue = ChiSquaredProvider.GetCriticalValue(df, _alpha);
             bool isNormal = chiSquared < criticalValue;
 
-            return new ChiSquaredResult
+            return new ChiSquaredTestResult
             {
                 ChiSquaredStatistic = chiSquared,
                 CriticalValue = criticalValue,
@@ -158,9 +102,9 @@ namespace WholesaleStoreSimulation
             };
         }
 
-        private List<IntervalInfo> MergeIntervals(List<IntervalInfo> intervals)
+        private List<ChiSquaredIntervalInfo> MergeIntervals(List<ChiSquaredIntervalInfo> intervals)
         {
-            var merged = new List<IntervalInfo>(intervals);
+            var merged = new List<ChiSquaredIntervalInfo>(intervals);
             const double minExpectedFrequency = 5.0; // Минимальная ожидаемая частота
 
             // TODO change to Observed if we need to exclude intervals with < 5 values
