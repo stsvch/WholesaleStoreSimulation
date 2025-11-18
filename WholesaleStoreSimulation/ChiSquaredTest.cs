@@ -21,7 +21,7 @@ namespace WholesaleStoreSimulation
         /// <summary>
         /// Выполняет тест хи-квадрат.
         /// </summary>
-        public ChiSquaredResult PerformTest()
+        public ChiSquaredTestResult PerformTest()
         {
             int n = _data.Count;
             if (n < 20)
@@ -40,10 +40,10 @@ namespace WholesaleStoreSimulation
             double maxVal = _data.Max();
             double intervalWidth = (maxVal - minVal) / k;
 
-            var intervals = new List<IntervalInfo>();
+            var intervals = new List<ChiSquaredIntervalInfo>();
             for (int i = 0; i < k; i++)
             {
-                var interval = new IntervalInfo
+                var interval = new ChiSquaredIntervalInfo
                 {
                     LowerBound = minVal + i * intervalWidth,
                     UpperBound = minVal + (i + 1) * intervalWidth
@@ -90,7 +90,7 @@ namespace WholesaleStoreSimulation
             double criticalValue = ChiSquaredProvider.GetCriticalValue(df, _alpha);
             bool isNormal = chiSquared < criticalValue;
 
-            return new ChiSquaredResult
+            return new ChiSquaredTestResult
             {
                 ChiSquaredStatistic = chiSquared,
                 CriticalValue = criticalValue,
@@ -102,9 +102,9 @@ namespace WholesaleStoreSimulation
             };
         }
 
-        private List<IntervalInfo> MergeIntervals(List<IntervalInfo> intervals)
+        private List<ChiSquaredIntervalInfo> MergeIntervals(List<ChiSquaredIntervalInfo> intervals)
         {
-            var merged = new List<IntervalInfo>(intervals);
+            var merged = new List<ChiSquaredIntervalInfo>(intervals);
             const double minExpectedFrequency = 5.0; // Минимальная ожидаемая частота
 
             // TODO change to Observed if we need to exclude intervals with < 5 values

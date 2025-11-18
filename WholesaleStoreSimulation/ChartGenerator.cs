@@ -13,7 +13,7 @@ namespace WholesaleStoreSimulation
         public static void GenerateHtmlReport(
             SimulationResult singleResult,
             AggregatedResult aggregatedResult,
-            IEnumerable<ChiSquaredMetricResult> chiSquaredResults = null,
+            IEnumerable<ChiSquaredMetricTestResult> chiSquaredResults = null,
             string fileName = "simulation_results.html")
         {
             var html = GenerateMainHtmlContent(singleResult, aggregatedResult, chiSquaredResults);
@@ -25,11 +25,11 @@ namespace WholesaleStoreSimulation
         private static string GenerateMainHtmlContent(
             SimulationResult single,
             AggregatedResult aggregated,
-            IEnumerable<ChiSquaredMetricResult> chiSquaredResults = null)
+            IEnumerable<ChiSquaredMetricTestResult> chiSquaredResults = null)
         {
             var culture = CultureInfo.InvariantCulture;
             var htmlBuilder = new StringBuilder();
-            var chiSquaredList = chiSquaredResults?.ToList() ?? new List<ChiSquaredMetricResult>();
+            var chiSquaredList = chiSquaredResults?.ToList() ?? new List<ChiSquaredMetricTestResult>();
 
             htmlBuilder.AppendLine("<!DOCTYPE html>");
             htmlBuilder.AppendLine("<html lang=\"ru\"><head>");
@@ -47,16 +47,16 @@ namespace WholesaleStoreSimulation
                 for (int index = 0; index < chiSquaredList.Count; index++)
                 {
                     var metricResult = chiSquaredList[index];
-                    string cssClass = metricResult.IsNormal ? "chi-squared-accepted" : "chi-squared-rejected";
-                    string resultText = metricResult.IsNormal ? "ГИПОТЕЗА ПРИНЯТА" : "ГИПОТЕЗА ОТВЕРГНУТА";
-                    string color = metricResult.IsNormal ? "#27ae60" : "#e74c3c";
+                    string cssClass = metricResult.Result.IsNormal ? "chi-squared-accepted" : "chi-squared-rejected";
+                    string resultText = metricResult.Result.IsNormal ? "ГИПОТЕЗА ПРИНЯТА" : "ГИПОТЕЗА ОТВЕРГНУТА";
+                    string color = metricResult.Result.IsNormal ? "#27ae60" : "#e74c3c";
 
                     htmlBuilder.AppendLine($"        <div class=\"chi-squared-result {cssClass}\">");
                     htmlBuilder.AppendLine($"            <h3>{metricResult.MetricName}</h3>");
                     htmlBuilder.AppendLine(
-                        $"            <p><strong>Выборочное среднее:</strong> {metricResult.Mean:F3} | <strong>Стандартное отклонение:</strong> {metricResult.StdDev:F3}</p>");
+                        $"            <p><strong>Выборочное среднее:</strong> {metricResult.Result.Mean:F3} | <strong>Стандартное отклонение:</strong> {metricResult.Result.StdDev:F3}</p>");
                     htmlBuilder.AppendLine(
-                        $"            <p><strong>Статистика χ²:</strong> {metricResult.ChiSquaredStatistic:F4} | <strong>Критическое значение:</strong> {metricResult.CriticalValue:F4} | <strong>df:</strong> {metricResult.DegreesOfFreedom}</p>");
+                        $"            <p><strong>Статистика χ²:</strong> {metricResult.Result.ChiSquaredStatistic:F4} | <strong>Критическое значение:</strong> {metricResult.Result.CriticalValue:F4} | <strong>df:</strong> {metricResult.Result.DegreesOfFreedom}</p>");
                     htmlBuilder.AppendLine(
                         $"            <p><strong>Результат:</strong> <span style=\"color:{color}; font-weight:bold;\">{resultText}</span></p>");
                     htmlBuilder.AppendLine(
@@ -207,19 +207,19 @@ namespace WholesaleStoreSimulation
             }
             return result;
         }
-        private static string SerializeChiSquaredResults(List<ChiSquaredMetricResult> results)
+        private static string SerializeChiSquaredResults(List<ChiSquaredMetricTestResult> results)
         {
             var payload = results.Select((res, index) => new
             {
                 chartId = $"chiSquaredHistogramChart{index}",
                 metric = res.MetricName,
-                mean = res.Mean,
-                stdDev = res.StdDev,
-                chiSquared = res.ChiSquaredStatistic,
-                critical = res.CriticalValue,
-                df = res.DegreesOfFreedom,
-                isNormal = res.IsNormal,
-                intervals = res.Intervals.Select(i => new
+                mean = res.Result.Mean,
+                stdDev = res.Result.StdDev,
+                chiSquared = res.Result.ChiSquaredStatistic,
+                critical = res.Result.CriticalValue,
+                df = res.Result.DegreesOfFreedom,
+                isNormal = res.Result.IsNormal,
+                intervals = res.Result.Intervals.Select(i => new
                 {
                     lower = i.LowerBound,
                     upper = i.UpperBound,
@@ -230,7 +230,7 @@ namespace WholesaleStoreSimulation
 
             return JsonSerializer.Serialize(payload);
         }
-        private static string SerializeChiSquaredComparison(ChiSquaredResult res, CultureInfo c) => $"{{'calculated':{res.ChiSquaredStatistic.ToString("F4", c)},'critical':{res.CriticalValue.ToString("F4", c)},'isNormal':{res.IsNormal.ToString().ToLower()},'degreesOfFreedom':{res.DegreesOfFreedom}}}";
+        private static string SerializeChiSquaredComparison(ChiSquaredTestResult res, CultureInfo c) => $"{{'calculated':{res.ChiSquaredStatistic.ToString("F4", c)},'critical':{res.CriticalValue.ToString("F4", c)},'isNormal':{res.IsNormal.ToString().ToLower()},'degreesOfFreedom':{res.DegreesOfFreedom}}}";
         private static string GenerateChiSquaredDistributionData(int df, double calc, double crit)
         {
             var data = new List<string>();
