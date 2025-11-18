@@ -63,36 +63,41 @@ namespace WholesaleStoreSimulation
                 utilizationData.Add(result.ClerkUtilizations.Average());
             }
 
-            // Вычисляем доверительные интервалы для всех метрик
+            // Вычисляем доверительные интервалы для всех ключевых метрик
             var ci1 = CalculateConfidenceInterval(systemTimeData);
-            results.Add(new ConfidenceIntervalResult { 
-                MetricName = "Среднее время в системе", 
-                Interval = ci1 
+            results.Add(new ConfidenceIntervalResult
+            {
+                MetricName = "Среднее время в системе",
+                Interval = ci1
             });
 
-            /*var ci2 = CalculateConfidenceInterval(waitTimeData);
-            results.Add(new ConfidenceIntervalResult { 
-                MetricName = "Среднее время ожидания", 
-                Interval = ci2 
+            var ci2 = CalculateConfidenceInterval(waitTimeData);
+            results.Add(new ConfidenceIntervalResult
+            {
+                MetricName = "Среднее время ожидания",
+                Interval = ci2
             });
 
             var ci3 = CalculateConfidenceInterval(customersServedData);
-            results.Add(new ConfidenceIntervalResult { 
-                MetricName = "Количество обслуженных покупателей", 
-                Interval = ci3 
+            results.Add(new ConfidenceIntervalResult
+            {
+                MetricName = "Количество обслуженных покупателей",
+                Interval = ci3
             });
 
             var ci4 = CalculateConfidenceInterval(queueLengthData);
-            results.Add(new ConfidenceIntervalResult { 
-                MetricName = "Средняя длина очереди", 
-                Interval = ci4 
+            results.Add(new ConfidenceIntervalResult
+            {
+                MetricName = "Средняя длина очереди",
+                Interval = ci4
             });
 
             var ci5 = CalculateConfidenceInterval(utilizationData);
-            results.Add(new ConfidenceIntervalResult { 
-                MetricName = "Средняя загрузка клерков", 
-                Interval = ci5 
-            });*/
+            results.Add(new ConfidenceIntervalResult
+            {
+                MetricName = "Средняя загрузка клерков",
+                Interval = ci5
+            });
 
             // Вывод результатов в консоль
             Console.WriteLine($"│");

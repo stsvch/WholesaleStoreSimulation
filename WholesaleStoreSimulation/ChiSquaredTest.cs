@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Linq;
 
 namespace WholesaleStoreSimulation
 {
@@ -14,6 +15,38 @@ namespace WholesaleStoreSimulation
         public List<IntervalInfo> Intervals { get; set; } = new();
         public double Mean { get; set; }
         public double StdDev { get; set; }
+    }
+
+    /// <summary>
+    /// Результат теста хи-квадрат для конкретного отклика.
+    /// </summary>
+    public class ChiSquaredMetricResult : ChiSquaredResult
+    {
+        public string MetricName { get; set; } = string.Empty;
+
+        public ChiSquaredMetricResult()
+        {
+        }
+
+        public ChiSquaredMetricResult(string metricName, ChiSquaredResult baseResult)
+        {
+            MetricName = metricName;
+            ChiSquaredStatistic = baseResult.ChiSquaredStatistic;
+            CriticalValue = baseResult.CriticalValue;
+            DegreesOfFreedom = baseResult.DegreesOfFreedom;
+            IsNormal = baseResult.IsNormal;
+            Mean = baseResult.Mean;
+            StdDev = baseResult.StdDev;
+            Intervals = baseResult.Intervals
+                .Select(i => new IntervalInfo
+                {
+                    LowerBound = i.LowerBound,
+                    UpperBound = i.UpperBound,
+                    ObservedFrequency = i.ObservedFrequency,
+                    ExpectedFrequency = i.ExpectedFrequency
+                })
+                .ToList();
+        }
     }
 
     /// <summary>
