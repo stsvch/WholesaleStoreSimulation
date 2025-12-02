@@ -85,7 +85,10 @@ public class Program
         // 1.6
         var sensitivityResults = SensitivityAnalysis.PerformComprehensiveAnalysis(cfg);
         SensitivityChartGenerator.GenerateHtmlReport(sensitivityResults);
-        
+
+        // Лабораторная 4: комплексный набор экспериментов
+        Lab4ExperimentRunner.Run(cfg);
+
         Console.WriteLine("\nГотово.");
     }
     
